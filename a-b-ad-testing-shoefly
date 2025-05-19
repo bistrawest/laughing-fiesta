@@ -1,0 +1,64 @@
+import pandas as pd
+
+ad_clicks = pd.read_csv('ad_clicks.csv')
+print(ad_clicks.head(5))
+
+ad_clicks_source = ad_clicks.groupby('utm_source').user_id.count().reset_index
+print(ad_clicks_source)
+
+ad_clicks['is_click'] = ~ad_clicks.ad_click_timestamp.isnull()
+print(ad_clicks)
+
+clicks_by_source = ad_clicks.groupby(['utm_source', 'is_click']).user_id.count().reset_index()
+
+clicks_pivot = clicks_by_source.pivot(
+  columns = 'is_click',
+  index = 'utm_source',
+  values = 'user_id').reset_index()
+
+print(clicks_pivot)
+
+clicks_pivot['percent_clicked'] = clicks_pivot[True] / (clicks_pivot[True] + clicks_pivot[False])
+
+print(clicks_pivot)
+
+countA_B = ad_clicks.groupby('experimental_group').user_id.count().reset_index()
+print(countA_B)
+#same count of users each exposed to A and B
+
+clicks_AB = ad_clicks.groupby(['experimental_group', 'is_click']).user_id.count().reset_index()
+clicks_AB_pivot = clicks_AB.pivot(
+  columns = 'is_click', 
+  index = 'experimental_group',
+  values = 'user_id').reset_index()
+
+print(clicks_AB_pivot)
+
+a_clicks = ad_clicks[ad_clicks.experimental_group == 'A']
+b_clicks = ad_clicks[ad_clicks.experimental_group == 'B']
+
+a_clicks_count = a_clicks.groupby(['is_click', 'day']).user_id.count().reset_index().pivot(
+  columns = 'is_click',
+  index = 'day',
+  values = 'user_id').reset_index()
+
+b_clicks_count = b_clicks.groupby(['is_click', 'day']).user_id.count().reset_index().pivot(
+  columns = 'is_click',
+  index = 'day',
+  values = 'user_id').reset_index()
+
+print(a_clicks_count)
+print(b_clicks_count)
+
+a_clicks_count['percent_clicked'] = a_clicks_count[True]/(a_clicks_count[True]+a_clicks_count[False])
+print(a_clicks_count)
+
+b_clicks_count['percent_clicked'] = b_clicks_count[True]/(b_clicks_count[True]+b_clicks_count[False])
+print(b_clicks_count)
+
+#conclusion: higher percentages with Ad A with those exposed clicked quite a consistent percentage of clicking success just below 40% throughout the week with the highest on Thursday with 41%. in contrast, Ad B had weaker average success below 30% throughout the week with the highest on Tuesday at 38%. from the data shown, I would recommend Ad A to the Shoefly company.
+
+
+
+
+
