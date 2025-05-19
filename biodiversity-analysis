@@ -1,0 +1,122 @@
+#What is the distribution of conservation status for species?
+
+import pandas as pd
+import numpy as np
+from matplotlib import pyplot as plt
+import seaborn as sns
+
+species = pd.read_csv('species_info.csv')
+observations = pd.read_csv('observations.csv')
+
+print(species.head())
+print(observations.head())
+
+print(species.describe())
+print(observations.describe())
+
+print(species.category.unique())
+print(observations.park_name.unique())
+
+
+print(species.conservation_status.unique())
+#Looking at species dataset, a lot of conservation_status values are missing, we can fill in the missing values with 'Unidentified'
+species.fillna('Unidentified', inplace=True)
+species.groupby('conservation_status').size()
+
+print(observations.park_name.unique())
+#From first look at the observation dataset, there are not missing values. We can look at duplicated values and drop those to clean it up.
+print(observations.duplicated().head())
+observations.drop_duplicates()
+
+#grouping into species and sorting into conservation status
+conservationCategory = species[species.conservation_status != "Unidentified"]\
+    .groupby(["conservation_status", "category"])['scientific_name']\
+    .count()\
+    .unstack(fill_value=0)
+conservationCategory.fillna('0', inplace=True)
+print(conservationCategory)
+
+conservation_unid = species[species.conservation_status == "Unidentified"]\
+    .groupby(["category", "conservation_status"])['scientific_name']\
+    .count()\
+    .unstack(fill_value=0)
+print(conservation_unid)
+
+
+ax = conservationCategory.plot(kind = 'bar', figsize=(10,9), stacked=False, legend=True)
+ax.set_xlabel("Conservation Status")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
+ax.set_ylabel("Number of Species")
+plt.title('Distribution of species across conservation statuses by category')
+
+
+ax2 = conservation_unid.plot(kind = 'bar', figsize=(10,9), stacked=True, legend=False)
+ax2.set_xlabel("Species Category")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
+ax2.set_ylabel("Number of Unidentified Species")
+plt.title('Distribution of species with unidentified conservation status by category')
+
+
+
+plt.show()
+
+
+
+#Part 2: looking at observations of squirrel in different American national parks
+from itertools import chain
+import string
+
+species['protected'] = species.conservation_status != 'Unidentified'
+
+def remove_punctuations(text):
+    for punctuation in string.punctuation:
+        text = text.replace(punctuation, '')
+    return text
+
+common_Names = species[species.category == "Reptile"]\
+    .common_names\
+    .apply(remove_punctuations)\
+    .str.split().tolist()
+
+print(common_Names[:7])
+
+
+cleanRows = []
+
+for item in common_Names:
+    item = list(dict.fromkeys(item))
+    cleanRows.append(item)
+    
+print(cleanRows[:7])
+
+res = list(chain.from_iterable(i if isinstance(i, list) else [i] for i in cleanRows))
+res[:7]
+
+words_counted = []
+
+for i in res:
+    x = res.count(i)
+    words_counted.append((i,x))
+
+pd.DataFrame(set(words_counted), columns =['Word', 'Count']).sort_values("Count", ascending = False).head(10)
+
+
+species['snake'] = species.common_names.str.contains(r"\bSnake\b", regex = True)
+
+print(species[species.snake])
+
+snake_observations = observations.merge(species[species.snake])
+print(snake_observations)
+
+
+snake_observations.groupby('park_name').observations.sum().reset_index()
+
+obs_by_park = snake_observations.groupby(['park_name', 'protected']).observations.sum().reset_index()
+print(obs_by_park)
+
+plt.figure(figsize=(16, 4))
+sns.barplot(x=obs_by_park.park_name, y= obs_by_park.observations, hue=obs_by_park.protected)
+plt.xlabel('National Parks')
+plt.ylabel('Number of Observations')
+plt.title('Observations of Snakes per Week')
+plt.show()
